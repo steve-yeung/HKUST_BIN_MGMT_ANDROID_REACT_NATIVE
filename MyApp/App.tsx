@@ -446,7 +446,9 @@ function BinStatusScreen({navigation}): React.JSX.Element {
       }
     } catch (error) {
       console.error('Error loading bin data:', error)
-      setError('Failed to load bin status. Please try again.')
+      setError(
+        'Failed to load bin status. Please try again.' + loginInfo.idtoken,
+      )
     } finally {
       setLoading(false)
     }

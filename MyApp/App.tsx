@@ -1,7 +1,7 @@
-import React, {useState, useEffect} from 'react';
-import 'react-native-gesture-handler';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import React, {useState, useEffect, createContext, useContext} from 'react'
+import 'react-native-gesture-handler'
+import {NavigationContainer} from '@react-navigation/native'
+import {createNativeStackNavigator} from '@react-navigation/native-stack'
 import {
   StyleSheet,
   Text,
@@ -15,11 +15,17 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-} from 'react-native';
-import {ProgressBar, Button as PaperButton} from 'react-native-paper';
-import axios from 'axios';
+  Keyboard,
+  KeyboardAvoidingView,
+  LogBox,
+} from 'react-native'
+import {ProgressBar, Button as PaperButton} from 'react-native-paper'
+import axios from 'axios'
 
-const Stack = createNativeStackNavigator();
+// 創建身份驗證上下文
+const AuthContext = createContext(null)
+
+const Stack = createNativeStackNavigator()
 
 // HKUST Color Palette
 const COLORS = {
@@ -35,7 +41,7 @@ const COLORS = {
   success: '#4CAF50',
   warning: '#FFC107',
   danger: '#F44336',
-};
+}
 
 // Simple icon text fallbacks
 const ICONS = {
@@ -55,14 +61,14 @@ const ICONS = {
   location: '📍',
   alert: '⚠️',
   history: '🕒',
-};
+}
 
 // API configuration
 const API_CONFIG = {
   baseUrl: 'http://localhost:8080', // This can be changed later
   firebaseAuthUrl:
     'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDN41zFMPOZKSjrSKTcwiEG657whMJLhnE',
-};
+}
 
 // Function to login with Firebase
 const loginWithFirebase = async (email, password) => {
@@ -71,16 +77,13 @@ const loginWithFirebase = async (email, password) => {
       email,
       password,
       returnSecureToken: true,
-    });
-    return response.data;
+    })
+    return response.data
   } catch (error) {
-    console.error(
-      'Firebase auth error:',
-      error.response?.data || error.message,
-    );
-    throw error;
+    console.error('Firebase auth error:', error.response?.data || error.message)
+    throw error
   }
-};
+}
 
 // Function to fetch bin data
 const fetchBinData = async idToken => {
@@ -89,120 +92,174 @@ const fetchBinData = async idToken => {
       headers: {
         Authorization: `Bearer ${idToken}`,
       },
-    });
-    return response.data;
+    })
+    return response.data
   } catch (error) {
     console.error(
       'Error fetching bin data:',
       error.response?.data || error.message,
-    );
-    throw error;
+    )
+    throw error
   }
-};
+}
 
-function LoginScreen({navigation, route}): React.JSX.Element {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+// 使用 AuthContext 的 Hook
+function useAuth() {
+  return useContext(AuthContext)
+}
+
+function LoginScreen({navigation}): React.JSX.Element {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const {setLoginInfo} = useAuth() // 使用 Context 取代 route.params
+
+  // Add keyboard listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true)
+      },
+    )
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false)
+      },
+    )
+
+    // Clean up listeners
+    return () => {
+      keyboardDidShowListener.remove()
+      keyboardDidHideListener.remove()
+    }
+  }, [])
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    setError('');
+    setIsLoading(true)
+    setError('')
 
     try {
-      const authData = await loginWithFirebase(email, password);
-      route.params.setLoginInfo({
+      const authData = await loginWithFirebase(email, password)
+      setLoginInfo({
+        // 使用 Context 中的 setLoginInfo
         username: email,
         idToken: authData.idToken,
         displayName: authData.displayName || email,
-      });
-      navigation.replace('Home');
+      })
+      navigation.replace('Home')
     } catch (error) {
-      setError('Login failed. Please check your credentials.');
-      console.error('Login error:', error);
+      setError('Login failed. Please check your credentials.')
+      console.error('Login error:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={COLORS.primary}
         translucent={true}
       />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loginContainer}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('./assets/watermark.png')}
-              style={styles.schoolLogo}
-              resizeMode="contain"
-            />
-          </View>
-
-          <View style={styles.formContainer}>
-            <Text style={styles.loginHeader}>Log In</Text>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputIcon}>{ICONS.user}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                placeholderTextColor={COLORS.grey}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputIcon}>{ICONS.lock}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholderTextColor={COLORS.grey}
-              />
-            </View>
-
-            <TouchableOpacity
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled">
+          <View
+            style={[
+              styles.loginContainer,
+              keyboardVisible && styles.loginContainerKeyboardOpen,
+            ]}>
+            <View
               style={[
-                styles.loginButton,
-                (!email || !password) && styles.loginButtonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={!email || !password || isLoading}>
-              {isLoading ? (
-                <ProgressBar
-                  indeterminate
-                  color={COLORS.white}
-                  style={styles.loginProgress}
+                styles.logoContainer,
+                keyboardVisible && styles.logoContainerSmall,
+              ]}>
+              <Image
+                source={require('./assets/watermark.png')}
+                style={[
+                  styles.schoolLogo,
+                  keyboardVisible && styles.schoolLogoSmall,
+                ]}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={styles.formContainer}>
+              <Text style={styles.loginHeader}>Log In</Text>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>{ICONS.user}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  placeholderTextColor={COLORS.grey}
                 />
-              ) : (
-                <Text style={styles.loginButtonText}>Login</Text>
-              )}
-            </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity>
-              <Text style={styles.forgotPassword}>Forgot Password?</Text>
-            </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>{ICONS.lock}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  placeholderTextColor={COLORS.grey}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.loginButton,
+                  (!email || !password) && styles.loginButtonDisabled,
+                ]}
+                onPress={handleLogin}
+                disabled={!email || !password || isLoading}>
+                {isLoading ? (
+                  <ProgressBar
+                    indeterminate
+                    color={COLORS.white}
+                    style={styles.loginProgress}
+                  />
+                ) : (
+                  <Text style={styles.loginButtonText}>Login</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity>
+                <Text style={styles.forgotPassword}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
+
+            {!keyboardVisible && (
+              <Text style={styles.appVersion}>
+                Waste Management System v1.0
+              </Text>
+            )}
           </View>
-
-          <Text style={styles.appVersion}>Waste Management System v1.0</Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
-    </View>
-  );
+    </KeyboardAvoidingView>
+  )
 }
 
-function HomeScreen({navigation, route}): React.JSX.Element {
+function HomeScreen({navigation}): React.JSX.Element {
+  const {loginInfo, setLoginInfo} = useAuth() // 使用 Context 取代 route.params
+
   const menuItems = [
     {id: 'A', name: 'Bin Status', icon: ICONS.bin},
     {id: 'B', name: 'Shortest Route', icon: ICONS.map},
@@ -212,13 +269,13 @@ function HomeScreen({navigation, route}): React.JSX.Element {
     {id: 'F', name: 'Stamps', icon: ICONS.alert},
     {id: 'G', name: 'Settings', icon: ICONS.settings},
     {id: 'H', name: 'Logout', icon: ICONS.logout}, // Changed from Help to Logout
-  ];
+  ]
 
   // Handle logout function
   const handleLogout = () => {
-    route.params.setLoginInfo(null);
-    navigation.replace('Login');
-  };
+    setLoginInfo(null)
+    navigation.replace('Login')
+  }
 
   return (
     <View style={styles.container}>
@@ -232,7 +289,7 @@ function HomeScreen({navigation, route}): React.JSX.Element {
           <View style={styles.homeHeader}>
             <View>
               <Text style={styles.welcomeText}>
-                Welcome, {route.params.loginInfo?.displayName || 'User'}
+                Welcome, {loginInfo?.displayName || 'User'}
               </Text>
               <Text style={styles.dateText}>
                 {new Date().toLocaleDateString('en-US', {
@@ -260,11 +317,9 @@ function HomeScreen({navigation, route}): React.JSX.Element {
                 onPress={() => {
                   // Direct logout for the Logout button (H)
                   if (item.id === 'H') {
-                    handleLogout();
+                    handleLogout()
                   } else {
-                    navigation.navigate(`Page${item.id}`, {
-                      loginInfo: route.params.loginInfo,
-                    });
+                    navigation.navigate(`Page${item.id}`)
                   }
                 }}>
                 <Text style={styles.cardIcon}>{item.icon}</Text>
@@ -284,13 +339,13 @@ function HomeScreen({navigation, route}): React.JSX.Element {
         </View>
       </SafeAreaView>
     </View>
-  );
+  )
 }
 
 function PageScreen({route, navigation}): React.JSX.Element {
   // Ensure PageA navigates to BinStatusScreen
   if (route.name === 'PageA') {
-    return <BinStatusScreen navigation={navigation} route={route} />;
+    return <BinStatusScreen navigation={navigation} />
   }
 
   return (
@@ -364,53 +419,53 @@ function PageScreen({route, navigation}): React.JSX.Element {
         </View>
       </SafeAreaView>
     </View>
-  );
+  )
 }
 
-function BinStatusScreen({navigation, route}): React.JSX.Element {
-  const [bins, setBins] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const loginInfo = route.params?.loginInfo;
+function BinStatusScreen({navigation}): React.JSX.Element {
+  const {loginInfo} = useAuth() // 使用 Context 取代 route.params
+  const [bins, setBins] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const loadBinData = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
 
     try {
       if (!loginInfo || !loginInfo.idToken) {
-        throw new Error('Authentication token not found');
+        throw new Error('Authentication token not found')
       }
 
-      const result = await fetchBinData(loginInfo.idToken);
+      const result = await fetchBinData(loginInfo.idToken)
 
       if (result.success && result.data && result.data.bins) {
-        setBins(result.data.bins);
+        setBins(result.data.bins)
       } else {
-        throw new Error('Failed to retrieve bin data');
+        throw new Error('Failed to retrieve bin data')
       }
     } catch (error) {
-      console.error('Error loading bin data:', error);
-      setError('Failed to load bin status. Please try again.');
+      console.error('Error loading bin data:', error)
+      setError('Failed to load bin status. Please try again.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadBinData();
-  }, []);
+    loadBinData()
+  }, [])
 
   const getStatusColor = usages => {
-    const loadPercentage = Math.min(100, (usages / 30) * 100);
-    if (loadPercentage <= 30) return COLORS.success; // Green for low
-    if (loadPercentage <= 70) return COLORS.warning; // Amber for medium
-    return COLORS.danger; // Red for high
-  };
+    const loadPercentage = Math.min(100, (usages / 30) * 100)
+    if (loadPercentage <= 30) return COLORS.success // Green for low
+    if (loadPercentage <= 70) return COLORS.warning // Amber for medium
+    return COLORS.danger // Red for high
+  }
 
   const calculatePercentage = usages => {
-    return Math.min(100, (usages / 30) * 100);
-  };
+    return Math.min(100, (usages / 30) * 100)
+  }
 
   return (
     <View style={styles.container}>
@@ -453,7 +508,7 @@ function BinStatusScreen({navigation, route}): React.JSX.Element {
           ) : (
             <ScrollView style={styles.binListContainer}>
               {bins.map((bin, index) => {
-                const loadPercentage = calculatePercentage(bin.usages);
+                const loadPercentage = calculatePercentage(bin.usages)
                 return (
                   <TouchableOpacity
                     key={bin.binStatusId}
@@ -513,7 +568,7 @@ function BinStatusScreen({navigation, route}): React.JSX.Element {
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
-                );
+                )
               })}
             </ScrollView>
           )}
@@ -526,61 +581,57 @@ function BinStatusScreen({navigation, route}): React.JSX.Element {
         </View>
       </SafeAreaView>
     </View>
-  );
+  )
 }
 
 function App(): React.JSX.Element {
-  const [loginInfo, setLoginInfo] = useState(null);
+  const [loginInfo, setLoginInfo] = useState(null)
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{
-          headerShown: false,
-          contentStyle: {backgroundColor: COLORS.white},
-        }}>
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          initialParams={{setLoginInfo}}
-        />
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          initialParams={{loginInfo, setLoginInfo}}
-        />
-        {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((page, index) => (
-          <Stack.Screen
-            key={page}
-            name={`Page${page}`}
-            component={PageScreen}
-            options={{
-              title:
-                page === 'A'
-                  ? 'Bin Status'
-                  : page === 'B'
-                  ? 'Shortest Route'
-                  : page === 'C'
-                  ? 'QR Code'
-                  : page === 'D'
-                  ? 'Load Prediction'
-                  : page === 'E'
-                  ? 'Data Analytics'
-                  : page === 'F'
-                  ? 'Stamps'
-                  : page === 'G'
-                  ? 'Settings'
-                  : 'Logout', // Changed from Help to Logout
-            }}
-          />
-        ))}
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+    // 提供 AuthContext 以便可以在整個應用程序中使用 loginInfo 和 setLoginInfo
+    <AuthContext.Provider value={{loginInfo, setLoginInfo}}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
+            headerShown: false,
+            contentStyle: {backgroundColor: COLORS.white},
+          }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Home" component={HomeScreen} />
+          {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((page, index) => (
+            <Stack.Screen
+              key={page}
+              name={`Page${page}`}
+              component={PageScreen}
+              options={{
+                title:
+                  page === 'A'
+                    ? 'Bin Status'
+                    : page === 'B'
+                    ? 'Shortest Route'
+                    : page === 'C'
+                    ? 'QR Code'
+                    : page === 'D'
+                    ? 'Load Prediction'
+                    : page === 'E'
+                    ? 'Data Analytics'
+                    : page === 'F'
+                    ? 'Stamps'
+                    : page === 'G'
+                    ? 'Settings'
+                    : 'Logout', // Changed from Help to Logout
+              }}
+            />
+          ))}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthContext.Provider>
+  )
 }
 
-const STATUSBAR_HEIGHT = StatusBar.currentHeight || 0;
+// 樣式部分保持不變
+const STATUSBAR_HEIGHT = StatusBar.currentHeight || 0
 
 const styles = StyleSheet.create({
   container: {
@@ -685,6 +736,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 32,
     fontSize: 12,
+  }, // New styles for keyboard adjustments
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  loginContainerKeyboardOpen: {
+    justifyContent: 'flex-start',
+    paddingTop: 50,
+  },
+  logoContainerSmall: {
+    marginBottom: 20,
+  },
+  schoolLogoSmall: {
+    width: 150,
+    height: 60,
   },
 
   // Home Screen
@@ -987,6 +1053,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: COLORS.white,
   },
-});
+})
 
-export default App;
+export default App

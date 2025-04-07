@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import 'react-native-gesture-handler';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
@@ -13,8 +13,11 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {ProgressBar, Button as PaperButton} from 'react-native-paper';
+import axios from 'axios';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,26 +57,73 @@ const ICONS = {
   history: '🕒',
 };
 
-function verifyLogin(username: string, password: string): boolean {
-  // Empty verification function that always returns true
-  return true;
-}
+// API configuration
+const API_CONFIG = {
+  baseUrl: 'http://localhost:8080', // This can be changed later
+  firebaseAuthUrl:
+    'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDN41zFMPOZKSjrSKTcwiEG657whMJLhnE',
+};
+
+// Function to login with Firebase
+const loginWithFirebase = async (email, password) => {
+  try {
+    const response = await axios.post(API_CONFIG.firebaseAuthUrl, {
+      email,
+      password,
+      returnSecureToken: true,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Firebase auth error:',
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// Function to fetch bin data
+const fetchBinData = async idToken => {
+  try {
+    const response = await axios.get(`${API_CONFIG.baseUrl}/bin_status`, {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Error fetching bin data:',
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
 
 function LoginScreen({navigation, route}): React.JSX.Element {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setIsLoading(true);
-    // Simulate network request
-    setTimeout(() => {
-      if (verifyLogin(username, password)) {
-        route.params.setLoginInfo({username, password});
-        setIsLoading(false);
-        navigation.replace('Home');
-      }
-    }, 800);
+    setError('');
+
+    try {
+      const authData = await loginWithFirebase(email, password);
+      route.params.setLoginInfo({
+        username: email,
+        idToken: authData.idToken,
+        displayName: authData.displayName || email,
+      });
+      navigation.replace('Home');
+    } catch (error) {
+      setError('Login failed. Please check your credentials.');
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -96,13 +146,15 @@ function LoginScreen({navigation, route}): React.JSX.Element {
           <View style={styles.formContainer}>
             <Text style={styles.loginHeader}>Log In</Text>
 
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>{ICONS.user}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Username"
-                value={username}
-                onChangeText={setUsername}
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
                 autoCapitalize="none"
                 placeholderTextColor={COLORS.grey}
               />
@@ -123,10 +175,10 @@ function LoginScreen({navigation, route}): React.JSX.Element {
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                (!username || !password) && styles.loginButtonDisabled,
+                (!email || !password) && styles.loginButtonDisabled,
               ]}
               onPress={handleLogin}
-              disabled={!username || !password || isLoading}>
+              disabled={!email || !password || isLoading}>
               {isLoading ? (
                 <ProgressBar
                   indeterminate
@@ -164,6 +216,7 @@ function HomeScreen({navigation, route}): React.JSX.Element {
 
   // Handle logout function
   const handleLogout = () => {
+    route.params.setLoginInfo(null);
     navigation.replace('Login');
   };
 
@@ -179,7 +232,7 @@ function HomeScreen({navigation, route}): React.JSX.Element {
           <View style={styles.homeHeader}>
             <View>
               <Text style={styles.welcomeText}>
-                Welcome, {route.params.loginInfo?.username || 'User'}
+                Welcome, {route.params.loginInfo?.displayName || 'User'}
               </Text>
               <Text style={styles.dateText}>
                 {new Date().toLocaleDateString('en-US', {
@@ -209,7 +262,9 @@ function HomeScreen({navigation, route}): React.JSX.Element {
                   if (item.id === 'H') {
                     handleLogout();
                   } else {
-                    navigation.navigate(`Page${item.id}`);
+                    navigation.navigate(`Page${item.id}`, {
+                      loginInfo: route.params.loginInfo,
+                    });
                   }
                 }}>
                 <Text style={styles.cardIcon}>{item.icon}</Text>
@@ -235,7 +290,7 @@ function HomeScreen({navigation, route}): React.JSX.Element {
 function PageScreen({route, navigation}): React.JSX.Element {
   // Ensure PageA navigates to BinStatusScreen
   if (route.name === 'PageA') {
-    return <BinStatusScreen navigation={navigation} />;
+    return <BinStatusScreen navigation={navigation} route={route} />;
   }
 
   return (
@@ -312,20 +367,49 @@ function PageScreen({route, navigation}): React.JSX.Element {
   );
 }
 
-function BinStatusScreen({navigation}): React.JSX.Element {
-  // Simulated pipeline data for bins
-  const bins = [
-    {name: 'Recycling Bin A1', load: 30, location: 'North Campus'},
-    {name: 'Waste Bin B2', load: 70, location: 'Main Building'},
-    {name: 'Compost Bin C3', load: 50, location: 'Cafeteria'},
-    {name: 'Paper Bin D4', load: 90, location: 'Library'},
-    {name: 'Glass Bin E5', load: 20, location: 'Science Building'},
-  ];
+function BinStatusScreen({navigation, route}): React.JSX.Element {
+  const [bins, setBins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const loginInfo = route.params?.loginInfo;
 
-  const getStatusColor = load => {
-    if (load <= 30) return COLORS.success; // Green for low
-    if (load <= 70) return COLORS.warning; // Amber for medium
+  const loadBinData = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      if (!loginInfo || !loginInfo.idToken) {
+        throw new Error('Authentication token not found');
+      }
+
+      const result = await fetchBinData(loginInfo.idToken);
+
+      if (result.success && result.data && result.data.bins) {
+        setBins(result.data.bins);
+      } else {
+        throw new Error('Failed to retrieve bin data');
+      }
+    } catch (error) {
+      console.error('Error loading bin data:', error);
+      setError('Failed to load bin status. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBinData();
+  }, []);
+
+  const getStatusColor = usages => {
+    const loadPercentage = Math.min(100, (usages / 30) * 100);
+    if (loadPercentage <= 30) return COLORS.success; // Green for low
+    if (loadPercentage <= 70) return COLORS.warning; // Amber for medium
     return COLORS.danger; // Red for high
+  };
+
+  const calculatePercentage = usages => {
+    return Math.min(100, (usages / 30) * 100);
   };
 
   return (
@@ -342,7 +426,7 @@ function BinStatusScreen({navigation}): React.JSX.Element {
               <Text style={styles.headerIcon}>{ICONS.back}</Text>
             </TouchableOpacity>
             <Text style={styles.pageTitle}>Bin Status</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={loadBinData}>
               <Text style={styles.headerIcon}>{ICONS.refresh}</Text>
             </TouchableOpacity>
           </View>
@@ -351,54 +435,88 @@ function BinStatusScreen({navigation}): React.JSX.Element {
             Monitor fill levels of waste bins in real-time
           </Text>
 
-          <ScrollView style={styles.binListContainer}>
-            {bins.map((bin, index) => (
-              <TouchableOpacity key={index} style={styles.binCard}>
-                <View style={styles.binCardHeader}>
-                  <Text style={styles.binName}>{bin.name}</Text>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {backgroundColor: getStatusColor(bin.load)},
-                    ]}
-                  />
-                </View>
-
-                <Text style={styles.binLocation}>
-                  <Text>{ICONS.location}</Text> {bin.location}
-                </Text>
-
-                <View style={styles.binProgressContainer}>
-                  <ProgressBar
-                    progress={bin.load / 100}
-                    color={getStatusColor(bin.load)}
-                    style={styles.progressBar}
-                  />
-                  <Text
-                    style={[styles.binLoad, {color: getStatusColor(bin.load)}]}>
-                    {bin.load}%
-                  </Text>
-                </View>
-
-                <View style={styles.binActionRow}>
-                  <TouchableOpacity style={styles.binAction}>
-                    <Text style={styles.binActionIcon}>{ICONS.map}</Text>
-                    <Text style={styles.binActionText}>Locate</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.binAction}>
-                    <Text style={styles.binActionIcon}>{ICONS.history}</Text>
-                    <Text style={styles.binActionText}>History</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.binAction}>
-                    <Text style={styles.binActionIcon}>{ICONS.alert}</Text>
-                    <Text style={styles.binActionText}>Alert</Text>
-                  </TouchableOpacity>
-                </View>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading bin data...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorMessage}>{error}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={loadBinData}>
+                <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
+          ) : (
+            <ScrollView style={styles.binListContainer}>
+              {bins.map((bin, index) => {
+                const loadPercentage = calculatePercentage(bin.usages);
+                return (
+                  <TouchableOpacity
+                    key={bin.binStatusId}
+                    style={styles.binCard}>
+                    <View style={styles.binCardHeader}>
+                      <Text style={styles.binName}>{bin.binName}</Text>
+                      <View
+                        style={[
+                          styles.statusIndicator,
+                          {backgroundColor: getStatusColor(bin.usages)},
+                        ]}
+                      />
+                    </View>
+
+                    <Text style={styles.binLocation}>
+                      <Text>{ICONS.location}</Text> ID: {bin.binStatusId}
+                    </Text>
+
+                    <View style={styles.binProgressContainer}>
+                      <ProgressBar
+                        progress={loadPercentage / 100}
+                        color={getStatusColor(bin.usages)}
+                        style={styles.progressBar}
+                      />
+                      <Text
+                        style={[
+                          styles.binLoad,
+                          {color: getStatusColor(bin.usages)},
+                        ]}>
+                        {loadPercentage.toFixed(1)}%
+                      </Text>
+                    </View>
+
+                    <View style={styles.binDetails}>
+                      <Text style={styles.binUsages}>
+                        <Text style={styles.usageLabel}>Usage Count: </Text>
+                        {bin.usages.toFixed(1)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.binActionRow}>
+                      <TouchableOpacity style={styles.binAction}>
+                        <Text style={styles.binActionIcon}>{ICONS.map}</Text>
+                        <Text style={styles.binActionText}>Locate</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity style={styles.binAction}>
+                        <Text style={styles.binActionIcon}>
+                          {ICONS.history}
+                        </Text>
+                        <Text style={styles.binActionText}>History</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity style={styles.binAction}>
+                        <Text style={styles.binActionIcon}>{ICONS.alert}</Text>
+                        <Text style={styles.binActionText}>Alert</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <TouchableOpacity
             style={styles.floatingButton}
@@ -412,10 +530,7 @@ function BinStatusScreen({navigation}): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const [loginInfo, setLoginInfo] = useState<{
-    username: string;
-    password: string;
-  } | null>(null);
+  const [loginInfo, setLoginInfo] = useState(null);
 
   return (
     <NavigationContainer>
@@ -433,7 +548,7 @@ function App(): React.JSX.Element {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          initialParams={{loginInfo}}
+          initialParams={{loginInfo, setLoginInfo}}
         />
         {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((page, index) => (
           <Stack.Screen
@@ -510,6 +625,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: COLORS.primary,
     textAlign: 'center',
+  },
+  errorText: {
+    color: COLORS.danger,
+    textAlign: 'center',
+    marginBottom: 15,
+    fontSize: 14,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -726,6 +847,43 @@ const styles = StyleSheet.create({
   },
 
   // Bin Status Screen
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.primary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: COLORS.danger,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   binListContainer: {
     flex: 1,
     paddingHorizontal: 16,
@@ -776,6 +934,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 8,
     textAlign: 'right',
+  },
+  binDetails: {
+    marginVertical: 8,
+  },
+  binUsages: {
+    fontSize: 14,
+    color: COLORS.grey,
+  },
+  usageLabel: {
+    fontWeight: 'bold',
   },
   binActionRow: {
     flexDirection: 'row',

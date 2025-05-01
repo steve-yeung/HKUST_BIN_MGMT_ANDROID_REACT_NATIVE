@@ -65,7 +65,7 @@ const ICONS = {
 
 // API configuration
 const API_CONFIG = {
-  baseUrl: 'http://localhost:8080', // This can be changed later
+  baseUrl: 'http://192.168.110.200:8080', // This can be changed later
   firebaseAuthUrl:
     'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDN41zFMPOZKSjrSKTcwiEG657whMJLhnE',
 }
@@ -459,14 +459,14 @@ function BinStatusScreen({navigation}): React.JSX.Element {
   }, [])
 
   const getStatusColor = usages => {
-    const loadPercentage = Math.min(100, (usages / 30) * 100)
+    const loadPercentage = Math.min(100, ((28 - usages) / 28) * 100);
     if (loadPercentage <= 30) return COLORS.success // Green for low
     if (loadPercentage <= 70) return COLORS.warning // Amber for medium
     return COLORS.danger // Red for high
   }
 
   const calculatePercentage = usages => {
-    return Math.min(100, (usages / 30) * 100)
+    return Math.min(100, ((28 - usages) / 28) * 100);
   }
 
   return (

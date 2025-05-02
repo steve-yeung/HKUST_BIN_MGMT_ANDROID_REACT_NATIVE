@@ -2,6 +2,7 @@ import React, {useState, useEffect, createContext, useContext} from 'react'
 import 'react-native-gesture-handler'
 import {NavigationContainer} from '@react-navigation/native'
 import {createNativeStackNavigator} from '@react-navigation/native-stack'
+import QRCodeScreen from './QRCode';
 import {
   StyleSheet,
   Text,
@@ -64,7 +65,7 @@ const ICONS = {
 }
 
 // API configuration
-const API_CONFIG = {
+export const API_CONFIG = {
   baseUrl: 'http://192.168.110.200:8080', // This can be changed later
   firebaseAuthUrl:
     'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDN41zFMPOZKSjrSKTcwiEG657whMJLhnE',
@@ -104,7 +105,7 @@ const fetchBinData = async idToken => {
 }
 
 // 使用 AuthContext 的 Hook
-function useAuth() {
+export function useAuth() {
   return useContext(AuthContext)
 }
 
@@ -312,16 +313,18 @@ function HomeScreen({navigation}): React.JSX.Element {
           <View style={styles.gridContainer}>
             {menuItems.map(item => (
               <TouchableOpacity
-                key={item.id}
-                style={styles.dashboardCard}
-                onPress={() => {
-                  // Direct logout for the Logout button (H)
-                  if (item.id === 'H') {
-                    handleLogout()
-                  } else {
-                    navigation.navigate(`Page${item.id}`)
-                  }
-                }}>
+              key={item.id}
+              style={styles.dashboardCard}
+              onPress={() => {
+                if (item.id === 'C') {
+                  navigation.navigate('QRCode'); // Navigate to QRCodeScreen
+                } else if (item.id === 'H') {
+                  handleLogout();
+                } else {
+                  navigation.navigate(`Page${item.id}`);
+                }
+              }}
+                >
                 <Text style={styles.cardIcon}>{item.icon}</Text>
                 <Text style={styles.cardText}>{item.name}</Text>
               </TouchableOpacity>
@@ -624,8 +627,17 @@ function App(): React.JSX.Element {
                     ? 'Settings'
                     : 'Logout', // Changed from Help to Logout
               }}
+            
             />
+
           ))}
+          <Stack.Screen
+            name="QRCode"
+            component={QRCodeScreen}
+            options={{
+              title: 'QR Code',
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthContext.Provider>

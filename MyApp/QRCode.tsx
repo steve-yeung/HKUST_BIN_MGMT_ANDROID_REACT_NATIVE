@@ -44,8 +44,7 @@ const QRCodeScreen = ({ navigation }) => {
           throw new Error('Failed to fetch user info');
         }
       } catch (err) {
-        console.error('Error fetching user info:', err.response?.data || err.message);
-        setError('Failed to load user info. Please try again.');
+        
       } finally {
         setLoading(false);
       }

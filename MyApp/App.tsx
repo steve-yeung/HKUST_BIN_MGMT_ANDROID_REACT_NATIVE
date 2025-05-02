@@ -258,25 +258,22 @@ function LoginScreen({navigation}): React.JSX.Element {
   )
 }
 
-function HomeScreen({navigation}): React.JSX.Element {
-  const {loginInfo, setLoginInfo} = useAuth() // 使用 Context 取代 route.params
+function HomeScreen({ navigation }): React.JSX.Element {
+  const { loginInfo, setLoginInfo } = useAuth(); // Use Context instead of route.params
 
+  // Updated menuItems array with only 4 buttons
   const menuItems = [
-    {id: 'A', name: 'Bin Status', icon: ICONS.bin},
-    {id: 'B', name: 'Shortest Route', icon: ICONS.map},
-    {id: 'C', name: 'QR Code', icon: ICONS.qrcode},
-    {id: 'D', name: 'Load Prediction', icon: ICONS.prediction},
-    {id: 'E', name: 'Data Analytics', icon: ICONS.analytics},
-    {id: 'F', name: 'Stamps', icon: ICONS.alert},
-    {id: 'G', name: 'Settings', icon: ICONS.settings},
-    {id: 'H', name: 'Logout', icon: ICONS.logout}, // Changed from Help to Logout
-  ]
+    { id: 'A', name: 'Bin Status', icon: ICONS.bin },
+    { id: 'C', name: 'QR Code', icon: ICONS.qrcode },
+    { id: 'G', name: 'Settings', icon: ICONS.settings },
+    { id: 'H', name: 'Logout', icon: ICONS.logout }, // Changed from Help to Logout
+  ];
 
   // Handle logout function
   const handleLogout = () => {
-    setLoginInfo(null)
-    navigation.replace('Login')
-  }
+    setLoginInfo(null);
+    navigation.replace('Login');
+  };
 
   return (
     <View style={styles.container}>
@@ -311,20 +308,20 @@ function HomeScreen({navigation}): React.JSX.Element {
           <Text style={styles.sectionTitle}>Dashboard</Text>
 
           <View style={styles.gridContainer}>
-            {menuItems.map(item => (
+            {menuItems.map((item) => (
               <TouchableOpacity
-              key={item.id}
-              style={styles.dashboardCard}
-              onPress={() => {
-                if (item.id === 'C') {
-                  navigation.navigate('QRCode'); // Navigate to QRCodeScreen
-                } else if (item.id === 'H') {
-                  handleLogout();
-                } else {
-                  navigation.navigate(`Page${item.id}`);
-                }
-              }}
-                >
+                key={item.id}
+                style={styles.dashboardCard}
+                onPress={() => {
+                  if (item.id === 'C') {
+                    navigation.navigate('QRCode'); // Navigate to QRCodeScreen
+                  } else if (item.id === 'H') {
+                    handleLogout();
+                  } else {
+                    navigation.navigate(`Page${item.id}`);
+                  }
+                }}
+              >
                 <Text style={styles.cardIcon}>{item.icon}</Text>
                 <Text style={styles.cardText}>{item.name}</Text>
               </TouchableOpacity>
@@ -334,7 +331,8 @@ function HomeScreen({navigation}): React.JSX.Element {
           <View style={styles.logoutContainer}>
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={handleLogout}>
+              onPress={handleLogout}
+            >
               <Text style={styles.logoutIcon}>{ICONS.logout}</Text>
               <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
@@ -342,7 +340,7 @@ function HomeScreen({navigation}): React.JSX.Element {
         </View>
       </SafeAreaView>
     </View>
-  )
+  );
 }
 
 function PageScreen({route, navigation}): React.JSX.Element {

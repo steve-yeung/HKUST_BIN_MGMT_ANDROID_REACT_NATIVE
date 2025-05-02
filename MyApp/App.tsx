@@ -266,7 +266,7 @@ function HomeScreen({ navigation }): React.JSX.Element {
     { id: 'A', name: 'Bin Status', icon: ICONS.bin },
     { id: 'C', name: 'QR Code', icon: ICONS.qrcode },
     { id: 'G', name: 'Settings', icon: ICONS.settings },
-    { id: 'H', name: 'Logout', icon: ICONS.logout }, // Changed from Help to Logout
+    { id: 'H', name: 'Logout', icon: ICONS.logout },
   ];
 
   // Handle logout function
@@ -326,16 +326,6 @@ function HomeScreen({ navigation }): React.JSX.Element {
                 <Text style={styles.cardText}>{item.name}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-
-          <View style={styles.logoutContainer}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <Text style={styles.logoutIcon}>{ICONS.logout}</Text>
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>

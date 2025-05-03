@@ -1,3 +1,13 @@
+export ANDROID_HOME=/Users/thomas/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+npx react-native run-android
+
+
+npx react-native run-ios --device "tello"
+npx react-native run-ios
+
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started

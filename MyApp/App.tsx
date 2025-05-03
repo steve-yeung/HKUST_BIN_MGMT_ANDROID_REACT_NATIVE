@@ -2,7 +2,7 @@ import React, {useState, useEffect, createContext, useContext} from 'react'
 import 'react-native-gesture-handler'
 import {NavigationContainer} from '@react-navigation/native'
 import {createNativeStackNavigator} from '@react-navigation/native-stack'
-import QRCodeScreen from './QRCode';
+import QRCodeScreen from './QRCode'
 import {
   StyleSheet,
   Text,
@@ -66,7 +66,7 @@ const ICONS = {
 
 // API configuration
 export const API_CONFIG = {
-  baseUrl: 'http://192.168.110.200:8080', // This can be changed later
+  baseUrl: 'http://172.20.10.5:8080', // This can be changed later
   firebaseAuthUrl:
     'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDN41zFMPOZKSjrSKTcwiEG657whMJLhnE',
 }
@@ -258,22 +258,22 @@ function LoginScreen({navigation}): React.JSX.Element {
   )
 }
 
-function HomeScreen({ navigation }): React.JSX.Element {
-  const { loginInfo, setLoginInfo } = useAuth(); // Use Context instead of route.params
+function HomeScreen({navigation}): React.JSX.Element {
+  const {loginInfo, setLoginInfo} = useAuth() // Use Context instead of route.params
 
   // Updated menuItems array with only 4 buttons
   const menuItems = [
-    { id: 'A', name: 'Bin Status', icon: ICONS.bin },
-    { id: 'C', name: 'QR Code', icon: ICONS.qrcode },
-    { id: 'G', name: 'Settings', icon: ICONS.settings },
-    { id: 'H', name: 'Logout', icon: ICONS.logout },
-  ];
+    {id: 'A', name: 'Bin Status', icon: ICONS.bin},
+    {id: 'C', name: 'QR Code', icon: ICONS.qrcode},
+    {id: 'G', name: 'Settings', icon: ICONS.settings},
+    {id: 'H', name: 'Logout', icon: ICONS.logout},
+  ]
 
   // Handle logout function
   const handleLogout = () => {
-    setLoginInfo(null);
-    navigation.replace('Login');
-  };
+    setLoginInfo(null)
+    navigation.replace('Login')
+  }
 
   return (
     <View style={styles.container}>
@@ -308,20 +308,19 @@ function HomeScreen({ navigation }): React.JSX.Element {
           <Text style={styles.sectionTitle}>Dashboard</Text>
 
           <View style={styles.gridContainer}>
-            {menuItems.map((item) => (
+            {menuItems.map(item => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.dashboardCard}
                 onPress={() => {
                   if (item.id === 'C') {
-                    navigation.navigate('QRCode'); // Navigate to QRCodeScreen
+                    navigation.navigate('QRCode') // Navigate to QRCodeScreen
                   } else if (item.id === 'H') {
-                    handleLogout();
+                    handleLogout()
                   } else {
-                    navigation.navigate(`Page${item.id}`);
+                    navigation.navigate(`Page${item.id}`)
                   }
-                }}
-              >
+                }}>
                 <Text style={styles.cardIcon}>{item.icon}</Text>
                 <Text style={styles.cardText}>{item.name}</Text>
               </TouchableOpacity>
@@ -330,7 +329,7 @@ function HomeScreen({ navigation }): React.JSX.Element {
         </View>
       </SafeAreaView>
     </View>
-  );
+  )
 }
 
 function PageScreen({route, navigation}): React.JSX.Element {
@@ -450,14 +449,14 @@ function BinStatusScreen({navigation}): React.JSX.Element {
   }, [])
 
   const getStatusColor = usages => {
-    const loadPercentage = Math.min(100, ((28 - usages) / 28) * 100);
+    const loadPercentage = Math.min(100, ((28 - usages) / 28) * 100)
     if (loadPercentage <= 30) return COLORS.success // Green for low
     if (loadPercentage <= 70) return COLORS.warning // Amber for medium
     return COLORS.danger // Red for high
   }
 
   const calculatePercentage = usages => {
-    return Math.min(100, ((28 - usages) / 28) * 100);
+    return Math.min(100, ((28 - usages) / 28) * 100)
   }
 
   return (
@@ -615,9 +614,7 @@ function App(): React.JSX.Element {
                     ? 'Settings'
                     : 'Logout', // Changed from Help to Logout
               }}
-            
             />
-
           ))}
           <Stack.Screen
             name="QRCode"
